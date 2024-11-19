@@ -25,7 +25,7 @@ def geo_plotter(direction: list, path: str) -> None:
     heights = [71, 65, 59, 55, 52, 49, 47, 44]  # Sets height indices
     time_dict = {0: '0000 UTC', 1: '0300 UTC', 2: '0600 UTC', 3: '0900 UTC', 4: '1200 UTC',
                  5: '1500 UTC', 6: '1800 UTC', 7: '2100 UTC'}  # Creates dictionary for time assignment
-    pgf_storage = pd.DataFrame(columns=['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa', '412.5hPa',
+    geo_storage = pd.DataFrame(columns=['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa', '412.5hPa',
                                         '288.083hPa', 'Date', 'Time'])  # Creates empty dictionary
     file_list = glob.glob(path)  # Grabs data files
     average_lat = (north + south) / 2
@@ -77,19 +77,19 @@ def geo_plotter(direction: list, path: str) -> None:
             temp_data_storage = pd.DataFrame(temp_data_storage).T  # Converts list to dataframe
             temp_data_storage.columns = ['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa',
                                          '412.5hPa', '288.083hPa', 'Date', 'Time']  # Sets dataframe columns
-            pgf_storage = pd.concat((pgf_storage, temp_data_storage), ignore_index=True)  # Concatenates dataframes
+            geo_storage = pd.concat((geo_storage, temp_data_storage), ignore_index=True)  # Concatenates dataframes
 
     plt.rcParams["figure.figsize"] = (9, 5)  # Sets figure length
 
     '''Creates scatter plot of PGF magnitudes'''
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['985hPa']))), label='PGF at 985hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['895hPa']))), label='PGF at 895hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['800hPa']))), label='PGF at 800hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['700hPa']))), label='PGF at 700hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['600hPa']))), label='PGF at 600hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['487.5hPa']))), label='PGF at 487.5hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['412.5hPa']))), label='PGF at 412.5hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['288.083hPa']))), label='PGF at 288.083hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['985hPa']))), label='PGF at 985hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['895hPa']))), label='PGF at 895hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['800hPa']))), label='PGF at 800hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['700hPa']))), label='PGF at 700hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['600hPa']))), label='PGF at 600hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['487.5hPa']))), label='PGF at 487.5hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['412.5hPa']))), label='PGF at 412.5hPa')
+    plt.scatter(geo_storage.Time, np.array(list(map(float, geo_storage['288.083hPa']))), label='PGF at 288.083hPa')
     plt.title('Average Geostrophic Wind Magnitude vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
@@ -98,15 +98,15 @@ def geo_plotter(direction: list, path: str) -> None:
     plt.close('all')
 
     '''Averages yearly data to create an average PGF diurnal plot and resets storage dataframe accordingly'''
-    zero_utc = pgf_storage.loc[pgf_storage['Time'] == '0000 UTC'].drop(columns=['Time', 'Date']).mean()
-    three_utc = pgf_storage.loc[pgf_storage['Time'] == '0300 UTC'].drop(columns=['Time', 'Date']).mean()
-    six_utc = pgf_storage.loc[pgf_storage['Time'] == '0600 UTC'].drop(columns=['Time', 'Date']).mean()
-    nine_utc = pgf_storage.loc[pgf_storage['Time'] == '0900 UTC'].drop(columns=['Time', 'Date']).mean()
-    twelve_utc = pgf_storage.loc[pgf_storage['Time'] == '1200 UTC'].drop(columns=['Time', 'Date']).mean()
-    fifteen_utc = pgf_storage.loc[pgf_storage['Time'] == '1500 UTC'].drop(columns=['Time', 'Date']).mean()
-    eighteen_utc = pgf_storage.loc[pgf_storage['Time'] == '1800 UTC'].drop(columns=['Time', 'Date']).mean()
-    twentyone_utc = pgf_storage.loc[pgf_storage['Time'] == '2100 UTC'].drop(columns=['Time', 'Date']).mean()
-    pgf_storage = pd.DataFrame(columns=['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa', '412.5hPa',
+    zero_utc = geo_storage.loc[geo_storage['Time'] == '0000 UTC'].drop(columns=['Time', 'Date']).mean()
+    three_utc = geo_storage.loc[geo_storage['Time'] == '0300 UTC'].drop(columns=['Time', 'Date']).mean()
+    six_utc = geo_storage.loc[geo_storage['Time'] == '0600 UTC'].drop(columns=['Time', 'Date']).mean()
+    nine_utc = geo_storage.loc[geo_storage['Time'] == '0900 UTC'].drop(columns=['Time', 'Date']).mean()
+    twelve_utc = geo_storage.loc[geo_storage['Time'] == '1200 UTC'].drop(columns=['Time', 'Date']).mean()
+    fifteen_utc = geo_storage.loc[geo_storage['Time'] == '1500 UTC'].drop(columns=['Time', 'Date']).mean()
+    eighteen_utc = geo_storage.loc[geo_storage['Time'] == '1800 UTC'].drop(columns=['Time', 'Date']).mean()
+    twentyone_utc = geo_storage.loc[geo_storage['Time'] == '2100 UTC'].drop(columns=['Time', 'Date']).mean()
+    geo_storage = pd.DataFrame(columns=['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa', '412.5hPa',
                                         '288.083hPa', 'Date', 'Time'])
     zero_utc = pd.DataFrame(zero_utc).T
     zero_utc['Time'] = '0000 UTC'
@@ -124,65 +124,65 @@ def geo_plotter(direction: list, path: str) -> None:
     eighteen_utc['Time'] = '1800 UTC'
     twentyone_utc = pd.DataFrame(twentyone_utc).T
     twentyone_utc['Time'] = '2100 UTC'
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(zero_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(three_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(six_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(nine_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(fifteen_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(eighteen_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(twentyone_utc)))
+    geo_storage = pd.concat((geo_storage, pd.DataFrame(zero_utc)))
+    geo_storage = pd.concat((geo_storage, pd.DataFrame(three_utc)))
+    geo_storage = pd.concat((geo_storage, pd.DataFrame(six_utc)))
+    geo_storage = pd.concat((geo_storage, pd.DataFrame(nine_utc)))
+    geo_storage = pd.concat((geo_storage, pd.DataFrame(fifteen_utc)))
+    geo_storage = pd.concat((geo_storage, pd.DataFrame(eighteen_utc)))
+    geo_storage = pd.concat((geo_storage, pd.DataFrame(twentyone_utc)))
 
     '''All lines below, until the next comment, plot the PGF magnitude for each model pressure level'''
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['985hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['985hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
     plt.savefig('/rstor/jmayhall/aes551_project/geo_plots/geo_985.jpg')
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['895hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['895hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
     plt.savefig('/rstor/jmayhall/aes551_project/geo_plots/geo_895.jpg')
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['800hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['800hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
     plt.savefig('/rstor/jmayhall/aes551_project/geo_plots/geo_800.jpg')
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['700hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['700hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
     plt.savefig('/rstor/jmayhall/aes551_project/geo_plots/geo_700.jpg')
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['600hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['600hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
     plt.savefig('/rstor/jmayhall/aes551_project/geo_plots/geo_600.jpg')
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['487.5hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['487.5hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
     plt.savefig('/rstor/jmayhall/aes551_project/geo_plots/geo_487.jpg')
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['412.5hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['412.5hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
     plt.savefig('/rstor/jmayhall/aes551_project/geo_plots/geo_412.jpg')
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['288.083hPa']))))
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['288.083hPa']))))
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
@@ -190,14 +190,14 @@ def geo_plotter(direction: list, path: str) -> None:
     plt.close('all')
 
     '''Plots all model level PGF average magnitudes together in one line plot'''
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['985hPa']))), label='PGF at 985hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['895hPa']))), label='PGF at 895hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['800hPa']))), label='PGF at 800hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['700hPa']))), label='PGF at 700hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['600hPa']))), label='PGF at 600hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['487.5hPa']))), label='PGF at 487.5hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['412.5hPa']))), label='PGF at 412.5hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['288.083hPa']))), label='PGF at 288.083hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['985hPa']))), label='PGF at 985hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['895hPa']))), label='PGF at 895hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['800hPa']))), label='PGF at 800hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['700hPa']))), label='PGF at 700hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['600hPa']))), label='PGF at 600hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['487.5hPa']))), label='PGF at 487.5hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['412.5hPa']))), label='PGF at 412.5hPa')
+    plt.plot(geo_storage.Time, np.array(list(map(float, geo_storage['288.083hPa']))), label='PGF at 288.083hPa')
     plt.title('Average Geostrophic Wind vs Time')
     plt.ylabel(r'Velocity (m/s) ')
     plt.xlabel('Time (UTC)')
