@@ -9,6 +9,7 @@ from netCDF4 import Dataset
 import matplotlib.pyplot as plt
 import pandas as pd
 import glob
+from datetime import datetime, timedelta
 
 import warnings
 
@@ -22,185 +23,148 @@ def pgf_plotter(direction: list, path: str) -> None:
     """
     warnings.filterwarnings("ignore")  # Removes Warnings
     north, south, east, west = direction  # Sets min/max lat/lon
-    heights = [71, 65, 59, 55, 52, 49, 47, 44]  # Sets height indices
-    time_dict = {0: '0000 UTC', 1: '0300 UTC', 2: '0600 UTC', 3: '0900 UTC', 4: '1200 UTC',
-                 5: '1500 UTC', 6: '1800 UTC', 7: '2100 UTC'}  # Creates dictionary for time assignment
-    pgf_storage = pd.DataFrame(columns=['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa', '412.5hPa',
-                                        '288.083hPa', 'Date', 'Time'])  # Creates empty dictionary
+    height_dict = {0: '1000hPa', 1: '925hPa', 2: '850hPa', 3: '700hPa', 4: '600hPa', 5: '500hPa',
+                   6: '400hPa', 7: '300hPa'}
+    pgf_storage = pd.DataFrame(columns=['1000hPa', '925hPa', '850hPa', '700hPa', '600hPa', '500hPa',
+                                        '400hPa', '300hPa', 'Date', 'Time'])  # Creates empty dictionary
     file_list = glob.glob(path)  # Grabs data files
-    for k, file in enumerate(file_list):
-        print(f'Processing file {k + 1} of {len(file_list)}')
-        data = Dataset(file)  # Loads in file
-        date = file[-12: -4]  # Gets date
-        lons = data.variables['lon'][:]  # Gets lons
+
+    start = datetime(1800, 1, 1, 0, 0)  # This is the "days since" part
+
+    data = Dataset(file_list[0])  # Loads in file
+    for k in range(data.variables['hgt'].shape[0]):
+        delta = timedelta(hours=int(data.variables['time'][k]))  # Create a time delta object from the number of days
+        offset = start + delta  # Add the specified number of days to 1990
+
+        date = offset.strftime('%Y%m%d')  # Gets date
+        time = offset.strftime('%H%M')
+        lons = data.variables['lon'][:] - 180  # Gets lons
         east_index, west_index = (np.abs(lons - east)).argmin(), (np.abs(lons - west)).argmin()  # Creates index slices
-        lons = lons[west_index: east_index]  # Slices lons
+        lons = lons[west_index: east_index + 1]  # Slices lons
 
         lats = data.variables['lat'][:]  # Gets lats
         north_index, south_index = ((np.abs(lats - north)).argmin(),
                                     (np.abs(lats - south)).argmin())  # creates index slices
-        lats = lats[south_index: north_index]  # Slices lats
+        lats = lats[north_index: south_index + 1]  # Slices lats
 
         lon, lat = np.meshgrid(lons, lats)  # Creates lat/lon grid
-        press_data = data.variables['PL'][:, :, south_index: north_index, west_index: east_index]  # Gets Pressure
-        temperature_data = data.variables['T'][:, :, south_index: north_index,
-                           west_index: east_index]  # Gets Temperature
+        geo_data = data.variables['hgt'][k, :, north_index: south_index + 1,
+                   west_index: east_index + 1]  # Gets Pressure
+        temp_data_storage = []  # Empty list for data storage
 
-        for i in range(np.shape(press_data)[0]):
-            time = time_dict.get(i)  # Gets time
-            temp_data_storage = []  # Empty list for data storage
-            for j in heights:
-                press = press_data[i][j]  # Gets pressure for specific time and height
-                temperature = temperature_data[i][j]  # Gets temperature for specific time and height
-                density = np.average(press) / (np.average(temperature) * 287)  # Calculates density
+        for i in range(np.shape(geo_data)[0]):
+            if i == 8:
+                break
+            geo = np.array(geo_data[i])  # Gets pressure for specific time and height
 
-                average_x = np.average(press, axis=1)  # Averages pressure into single longitude slice
-                n = len(average_x)  # Gets length of pressure longitude slice
-                dx = (6378000 * np.cos((np.average(lat, axis=0)[0] + np.average(lat, axis=0)[-1]) / 2) *
-                      (np.average(lon, axis=0)[-1] - np.average(lon, axis=0)[0]))  # Calculates east-west length
-                dpress_dx = -((np.sum(average_x * np.arange(n - 1, -n, -2)) / (n * (n - 1) / 2) / dx) /
-                              density)  # Calculates east-west pressure gradient
+            average_x = np.average(geo, axis=1)  # Averages pressure into single longitude slice
+            n = len(average_x)  # Gets length of pressure longitude slice
+            dx = (6378000 * np.cos((np.radians(np.average(lat, axis=0)[0] + np.average(lat, axis=0)[-1]) / 2)) *
+                  (np.radians(np.average(lon, axis=0)[-1] - np.average(lon, axis=0)[0])))
+            dpress_dx = -(np.sum(average_x * np.arange(n - 1, -n, -2)) / (n * (n - 1) / 2) / dx)  # Calculates east-west pressure gradient
 
-                average_y = np.average(press, axis=0)  # Averages pressure into single latitude slice
-                n = len(average_y)  # Gets length of pressure latitude slice
-                dy = 6378000 * (np.average(lat, axis=1)[-1] -
-                                np.average(lat, axis=1)[0])  # Calculates north-south length
-                dpress_dy = -((np.sum(average_y * np.arange(n - 1, -n, -2)) / (n * (n - 1) / 2) / dy) /
-                              density)  # Calculates north-south pressure gradient
-                temp_data_storage.append((np.sqrt(dpress_dy ** 2 + dpress_dx ** 2)))  # Stores pgf magnitude
-            temp_data_storage.append(date)  # Stores date
-            temp_data_storage.append(time)  # Stores time
-            temp_data_storage = pd.DataFrame(temp_data_storage).T  # Converts list to dataframe
-            temp_data_storage.columns = ['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa',
-                                         '412.5hPa', '288.083hPa', 'Date', 'Time']  # Sets dataframe columns
-            pgf_storage = pd.concat((pgf_storage, temp_data_storage), ignore_index=True)  # Concatenates dataframes
+            average_y = np.average(geo, axis=0)  # Averages pressure into single latitude slice
+            n = len(average_y)  # Gets length of pressure latitude slice
+            dy = 6378000 * np.radians((np.average(lat, axis=1)[0] -
+                                       np.average(lat, axis=1)[-1]))  # Calculates north-south length
+            dpress_dy = -((np.sum(average_y * np.arange(n - 1, -n, -2)) /
+                           (n * (n - 1) / 2) / dy))  # Calculates north-south pressure gradient
+            temp_data_storage.append((np.sqrt(dpress_dy ** 2 + dpress_dx ** 2)))  # Stores pgf magnitude
+        temp_data_storage.append(date)  # Stores date
+        temp_data_storage.append(time)  # Stores time
+        temp_data_storage = pd.DataFrame(temp_data_storage).T  # Converts list to dataframe
+        temp_data_storage.columns = ['1000hPa', '925hPa', '850hPa', '700hPa', '600hPa', '500hPa',
+                                     '400hPa', '300hPa', 'Date', 'Time']  # Sets dataframe columns
+        pgf_storage = pd.concat((pgf_storage, temp_data_storage), ignore_index=True)  # Concatenates dataframes
 
     plt.rcParams["figure.figsize"] = (9, 5)  # Sets figure length
 
-    '''Creates scatter plot of PGF magnitudes'''
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['985hPa']))), label='PGF at 985hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['895hPa']))), label='PGF at 895hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['800hPa']))), label='PGF at 800hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['700hPa']))), label='PGF at 700hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['600hPa']))), label='PGF at 600hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['487.5hPa']))), label='PGF at 487.5hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['412.5hPa']))), label='PGF at 412.5hPa')
-    plt.scatter(pgf_storage.Time, np.array(list(map(float, pgf_storage['288.083hPa']))), label='PGF at 288.083hPa')
-    plt.title('Average PGF Magnitude vs Time')
-    plt.ylabel(r'PGF (Pa/m) ')
-    plt.xlabel('Time (UTC)')
-    plt.legend(loc='upper right')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_scatter.jpg')
-    plt.close('all')
-
     '''Averages yearly data to create an average PGF diurnal plot and resets storage dataframe accordingly'''
-    zero_utc = pgf_storage.loc[pgf_storage['Time'] == '0000 UTC'].drop(columns=['Time', 'Date']).mean()
-    three_utc = pgf_storage.loc[pgf_storage['Time'] == '0300 UTC'].drop(columns=['Time', 'Date']).mean()
-    six_utc = pgf_storage.loc[pgf_storage['Time'] == '0600 UTC'].drop(columns=['Time', 'Date']).mean()
-    nine_utc = pgf_storage.loc[pgf_storage['Time'] == '0900 UTC'].drop(columns=['Time', 'Date']).mean()
-    twelve_utc = pgf_storage.loc[pgf_storage['Time'] == '1200 UTC'].drop(columns=['Time', 'Date']).mean()
-    fifteen_utc = pgf_storage.loc[pgf_storage['Time'] == '1500 UTC'].drop(columns=['Time', 'Date']).mean()
-    eighteen_utc = pgf_storage.loc[pgf_storage['Time'] == '1800 UTC'].drop(columns=['Time', 'Date']).mean()
-    twentyone_utc = pgf_storage.loc[pgf_storage['Time'] == '2100 UTC'].drop(columns=['Time', 'Date']).mean()
-    pgf_storage = pd.DataFrame(columns=['985hPa', '895hPa', '800hPa', '700hPa', '600hPa', '487.5hPa', '412.5hPa',
-                                        '288.083hPa', 'Date', 'Time'])
+    zero_utc = pgf_storage.loc[pgf_storage['Time'] == '0000'].drop(columns=['Time', 'Date']).mean()
+    six_utc = pgf_storage.loc[pgf_storage['Time'] == '0600'].drop(columns=['Time', 'Date']).mean()
+    twelve_utc = pgf_storage.loc[pgf_storage['Time'] == '1200'].drop(columns=['Time', 'Date']).mean()
+    eighteen_utc = pgf_storage.loc[pgf_storage['Time'] == '1800'].drop(columns=['Time', 'Date']).mean()
+    pgf_storage = pd.DataFrame(columns=['1000hPa', '925hPa', '850hPa', '700hPa', '600hPa', '500hPa',
+                                        '400hPa', '300hPa', 'Date', 'Time'])
     zero_utc = pd.DataFrame(zero_utc).T
     zero_utc['Time'] = '0000 UTC'
-    three_utc = pd.DataFrame(three_utc).T
-    three_utc['Time'] = '0300 UTC'
     six_utc = pd.DataFrame(six_utc).T
     six_utc['Time'] = '0600 UTC'
-    nine_utc = pd.DataFrame(nine_utc).T
-    nine_utc['Time'] = '0900 UTC'
     twelve_utc = pd.DataFrame(twelve_utc).T
     twelve_utc['Time'] = '1200 UTC'
-    fifteen_utc = pd.DataFrame(fifteen_utc).T
-    fifteen_utc['Time'] = '1500 UTC'
     eighteen_utc = pd.DataFrame(eighteen_utc).T
     eighteen_utc['Time'] = '1800 UTC'
-    twentyone_utc = pd.DataFrame(twentyone_utc).T
-    twentyone_utc['Time'] = '2100 UTC'
     pgf_storage = pd.concat((pgf_storage, pd.DataFrame(zero_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(three_utc)))
     pgf_storage = pd.concat((pgf_storage, pd.DataFrame(six_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(nine_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(fifteen_utc)))
+    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(twelve_utc)))
     pgf_storage = pd.concat((pgf_storage, pd.DataFrame(eighteen_utc)))
-    pgf_storage = pd.concat((pgf_storage, pd.DataFrame(twentyone_utc)))
 
     '''All lines below, until the next comment, plot the PGF magnitude for each model pressure level'''
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['985hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['1000hPa']))))
+    plt.title('Average PGF vs Time (1000hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_985.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_1000.jpg')
+    plt.show()
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['895hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['925hPa']))))
+    plt.title('Average PGF vs Time (925hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_895.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_925.jpg')
+    plt.show()
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['800hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['850hPa']))))
+    plt.title('Average PGF vs Time (850hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_800.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_850.jpg')
+    plt.show()
     plt.close('all')
 
     plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['700hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.title('Average PGF vs Time (700hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_700.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_700.jpg')
+    plt.show()
     plt.close('all')
 
     plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['600hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.title('Average PGF vs Time (600hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_600.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_600.jpg')
+    plt.show()
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['487.5hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['500hPa']))))
+    plt.title('Average PGF vs Time (500hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_487.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_500.jpg')
+    plt.show()
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['412.5hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['400hPa']))))
+    plt.title('Average PGF vs Time (400hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_412.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_400.jpg')
+    plt.show()
     plt.close('all')
 
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['288.083hPa']))))
-    plt.title('Average PGF vs Time')
+    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['300hPa']))))
+    plt.title('Average PGF vs Time (300hPa)')
     plt.ylabel(r'PGF (Pa/m) ')
     plt.xlabel('Time (UTC)')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_288.jpg')
+    plt.savefig('//uahdata/rstor/aes551_project_new/pgf_plots/pgf_300.jpg')
+    plt.show()
     plt.close('all')
-
-    '''Plots all model level PGF average magnitudes together in one line plot'''
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['985hPa']))), label='PGF at 985hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['895hPa']))), label='PGF at 895hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['800hPa']))), label='PGF at 800hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['700hPa']))), label='PGF at 700hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['600hPa']))), label='PGF at 600hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['487.5hPa']))), label='PGF at 487.5hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['412.5hPa']))), label='PGF at 412.5hPa')
-    plt.plot(pgf_storage.Time, np.array(list(map(float, pgf_storage['288.083hPa']))), label='PGF at 288.083hPa')
-    plt.title('Average PGF vs Time')
-    plt.ylabel(r'PGF (Pa/m) ')
-    plt.xlabel('Time (UTC)')
-    plt.legend(loc='upper right')
-    plt.savefig('/rstor/jmayhall/aes551_project/pgf_plots/pgf_total.jpg')
 
 
 if __name__ == '__main__':
-    pgf_plotter(direction=[41, 37, -102, -109],
-                path='//uahdata/rstor/aes551_project/data/*.nc4')  # Runs the code
+    pgf_plotter(direction=[45, 35, -100, -110],
+                path='//uahdata/rstor/aes551_project_new/data/*.nc')  # Runs the code
